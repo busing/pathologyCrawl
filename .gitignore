@@ -1,4 +1,6 @@
 data/
 images/
 capture/
+patholog_train.txt
+result/
 .DS_Store

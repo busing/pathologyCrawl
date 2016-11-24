@@ -4,7 +4,7 @@
 
 var casper = require('casper').create({
     verbose: true,
-    logLevel: 'info',
+    logLevel: 'debug',
     waitTimeout: 1000 * 10,
     pageSettings: {
         loadImages: true
@@ -19,8 +19,10 @@ var utils = require("./utils.js");
 var tools = require('utils');
 
 var account = {
-    username: 'taiyuan321@gmail.com',
-    password: '79134646852'
+    username: 'jsy774514072@gmail.com',
+    password: 'jsy19920106'
+    // username: '664732852@qq.com',
+    // password: '123456789520wft'
 }
 
 var url = {
@@ -63,12 +65,14 @@ casper.thenOpen(url.begin, function() {
 });
 
 casper.then(function() {
-    //开始训练
-    casper.waitForSelector("select[name='traininglevel']", function() {
+    //开始训练 阶段结束  现在不显示答案
+    // casper.waitForSelector("select[name='traininglevel']", function() {
+    casper.waitForSelector(".btn-primary", function() {
+
         this.click(".btn-primary");
         this.echo('click btn-primary', 'GREEN_BAR');
     }, function() {
-        this.echo('wait for traininglevel', 'RED_BAR');
+        this.echo('wait for traininglevel timeout', 'RED_BAR');
     }, 10000);
 });
 
@@ -77,7 +81,7 @@ casper.then(function() {
     //检测QustionID
     casper.waitForSelector("input[name='QuestionID']", function() {
         this.echo('get qustionId', 'GREEN_BAR');
-        this.capture(getFileName('capture') +"qustionId.jpg")
+        this.capture(getFileName('capture') + "qustionId.jpg")
 
         var qustionId = this.evaluate(function() {
             return __utils__.getFieldValue("input[name='QuestionID']");
@@ -91,10 +95,11 @@ casper.then(function() {
 });
 
 var i = 0;
+var preAnswerId;
 
 function doNext(casper, qustionId) {
     casper.echo('qustionId:' + qustionId, 'GREEN_BAR');
-    casper.wait(10000, function() {
+    casper.wait(5000, function() {
         var buttonText = casper.getHTML('#nextimage');
 
         if (qustionId != 0) {
@@ -102,26 +107,25 @@ function doNext(casper, qustionId) {
             casper.download("https://pcs-webtest0.pathology.washington.edu/academics/pattern/dev/file?id=" + qustionId,
                 getFileName('images') + qustionId + ".jpeg");
             //回答问题界面
-            if (buttonText == 'Answer') {
-                //选择答案
-                casper.click("input[name='answer']");
-                casper.capture(getFileName('capture') + qustionId + "_qustion.jpg");
+            //选择答案
+            casper.click("input[name='answer']");
 
-            }
             //问题答案界面
-            else {
+            if (qustionId == preAnswerId) {
                 //record correct answer
-                casper.capture(getFileName('capture')  + qustionId + "_answer.jpg");
-                var answerInfo = casper.evaluate(getAnswerInfo);
-                casper.echo(answerInfo, 'GREEN_BAR');
-                appendAnswer(answerInfo + "\n");
+                casper.capture(getFileName('capture') + qustionId + "_answer.jpg");
+            } else {
+                casper.capture(getFileName('capture') + qustionId + "_qustion.jpg");
             }
+            var answerInfo = casper.evaluate(getAnswerInfo);
+            casper.echo(answerInfo, 'GREEN_BAR');
+            appendAnswer(answerInfo + "\n");
         }
-
 
         casper.click('#nextimage');
         i++;
-        qustionId = casper.evaluate(function() {
+        preAnswerId = qustionId;
+        qustionId = casper.evaluateSync(function() {
             return __utils__.getFieldValue("input[name='QuestionID']");
         });
         //递归回调
@@ -132,8 +136,12 @@ function doNext(casper, qustionId) {
 
 //获取答案信息
 function getAnswerInfo() {
+    var module=$('#moduletab').find('.dropdown-toggle').text().trim();
+    var processInfo=$('.panel-heading').find('h3').text().trim();
     var qustionId = $("input[name='QuestionID']").val();
     var answerInfo = {
+        module:module,
+        processInfo:processInfo,
         qustionId: qustionId,
         answerList: []
     };
@@ -157,7 +165,7 @@ function getAnswerInfo() {
 //追加答案到文件
 function appendAnswer(data) {
     //记录数据到文件
-    var fileName =getFileName('data') + 'answerInfo.txt';
+    var fileName = getFileName('data') + 'answerInfo.txt';
     console.log("append to file " + fileName);
     fs.write(fileName, data, 'a');
 }
